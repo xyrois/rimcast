@@ -136,7 +136,20 @@ export default function HomePage() {
 
                 return (
                   <tr key={player.id} className="hover:bg-zinc-800/40 transition-colors">
-                    <td className="py-3 px-4 font-medium text-zinc-100">{player.name}</td>
+                    <td className="py-3 px-4 font-medium text-zinc-100">
+                      <div className="flex items-center gap-3">
+                        <img
+                          src={`https://cdn.nba.com/headshots/nba/latest/260x190/${player.id}.png`}
+                          alt={player.name}
+                          className="w-8 h-8 rounded-full object-cover bg-zinc-800"
+                          onError={(e) => {
+                            // Fallback for rookies/two-ways with missing portraits
+                            (e.target as HTMLElement).style.display = 'none';
+                          }}
+                        />
+                        <span>{player.name}</span>
+                      </div>
+                    </td>
                     <td className="py-3 px-4 text-zinc-400 font-mono text-xs">{player.team}</td>
                     <td className="py-3 px-4 text-right text-zinc-300">{player.current.gp}</td>
                     <td className="py-3 px-4 text-right text-zinc-300">{player.current.pts.toFixed(1)}</td>
