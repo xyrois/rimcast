@@ -198,7 +198,7 @@ export default function HomePage() {
                     <td className="py-3 px-4 font-medium text-zinc-100">
                       <div className="flex items-center gap-3">
                         <img
-                          src={`https://cdn.nba.com/headshots/nba/latest/260x190/${player.id}.png`}
+                          src={`https://a.espncdn.com/combiner/i?img=/i/headshots/nba/players/full/${player.id}.png&w=96&h=70`}
                           alt={player.name}
                           className="w-8 h-8 rounded-full object-cover bg-zinc-800 shrink-0"
                           onError={(e) => {

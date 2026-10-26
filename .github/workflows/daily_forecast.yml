@@ -2,7 +2,7 @@ name: Nightly Forecast Update
 
 on:
   schedule:
-    - cron: '0 10 * * *'
+    - cron: '0 10 * * *' # Runs daily at 10:00 UTC (morning US time)
   workflow_dispatch:
 
 permissions:
@@ -20,9 +20,10 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+          cache: 'pip'
 
       - name: Install Dependencies
-        run: pip install nba_api pandas numpy
+        run: pip install requests
 
       - name: Update Projections
         run: python .github/scripts/forecast.py
