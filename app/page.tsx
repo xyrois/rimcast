@@ -8,12 +8,16 @@ interface PlayerRecord {
   team: string;
   current: {
     gp: number;
+    min: number;
     pts: number;
     reb: number;
     ast: number;
   };
   ros_forecast: {
     proj_pts_avg: number;
+    proj_reb_avg: number;
+    proj_ast_avg: number;
+    end_season_pts_avg: number;
     rem_games: number;
   };
 }
@@ -22,7 +26,8 @@ export default function HomePage() {
   const [players, setPlayers] = useState<PlayerRecord[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTeam, setSelectedTeam] = useState('ALL');
-  const [sortBy, setSortBy] = useState<'pts' | 'proj_pts' | 'name'>('proj_pts');
+  const [activeStat, setActiveStat] = useState<'pts' | 'reb' | 'ast'>('pts');
+  const [sortBy, setSortBy] = useState<'proj' | 'current' | 'name'>('proj');
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -52,10 +57,28 @@ export default function HomePage() {
       })
       .sort((a, b) => {
         if (sortBy === 'name') return a.name.localeCompare(b.name);
-        if (sortBy === 'pts') return b.current.pts - a.current.pts;
-        return b.ros_forecast.proj_pts_avg - a.ros_forecast.proj_pts_avg;
+
+        const currentA = a.current[activeStat];
+        const currentB = b.current[activeStat];
+
+        const projA =
+          activeStat === 'pts'
+            ? a.ros_forecast.proj_pts_avg
+            : activeStat === 'reb'
+            ? a.ros_forecast.proj_reb_avg
+            : a.ros_forecast.proj_ast_avg;
+
+        const projB =
+          activeStat === 'pts'
+            ? b.ros_forecast.proj_pts_avg
+            : activeStat === 'reb'
+            ? b.ros_forecast.proj_reb_avg
+            : b.ros_forecast.proj_ast_avg;
+
+        if (sortBy === 'current') return currentB - currentA;
+        return projB - projA;
       });
-  }, [players, searchQuery, selectedTeam, sortBy]);
+  }, [players, searchQuery, selectedTeam, sortBy, activeStat]);
 
   if (isLoading) {
     return (
@@ -81,36 +104,55 @@ export default function HomePage() {
         </header>
 
         {/* Controls */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <input
-            type="text"
-            placeholder="Search player name..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="bg-zinc-900 border border-zinc-800 rounded-lg px-4 py-2 text-sm text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-zinc-500"
-          />
+        <div className="flex flex-col md:flex-row gap-3 justify-between items-stretch">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 flex-1">
+            <input
+              type="text"
+              placeholder="Search player name..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="bg-zinc-900 border border-zinc-800 rounded-lg px-4 py-2 text-sm text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-zinc-500"
+            />
 
-          <select
-            value={selectedTeam}
-            onChange={(e) => setSelectedTeam(e.target.value)}
-            className="bg-zinc-900 border border-zinc-800 rounded-lg px-4 py-2 text-sm text-zinc-200 focus:outline-none focus:border-zinc-500"
-          >
-            {teams.map((team) => (
-              <option key={team} value={team}>
-                {team === 'ALL' ? 'All Teams' : team}
-              </option>
+            <select
+              value={selectedTeam}
+              onChange={(e) => setSelectedTeam(e.target.value)}
+              className="bg-zinc-900 border border-zinc-800 rounded-lg px-4 py-2 text-sm text-zinc-200 focus:outline-none focus:border-zinc-500"
+            >
+              {teams.map((team) => (
+                <option key={team} value={team}>
+                  {team === 'ALL' ? 'All Teams' : team}
+                </option>
+              ))}
+            </select>
+
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as any)}
+              className="bg-zinc-900 border border-zinc-800 rounded-lg px-4 py-2 text-sm text-zinc-200 focus:outline-none focus:border-zinc-500"
+            >
+              <option value="proj">Sort: Projected ROS (High to Low)</option>
+              <option value="current">Sort: Current Stat (High to Low)</option>
+              <option value="name">Sort: Player Name (A-Z)</option>
+            </select>
+          </div>
+
+          {/* Metric Selector Tabs */}
+          <div className="flex bg-zinc-900 border border-zinc-800 rounded-lg p-1 self-start md:self-auto">
+            {(['pts', 'reb', 'ast'] as const).map((cat) => (
+              <button
+                key={cat}
+                onClick={() => setActiveStat(cat)}
+                className={`px-4 py-1.5 rounded-md text-xs font-semibold uppercase tracking-wider transition-colors ${
+                  activeStat === cat
+                    ? 'bg-zinc-800 text-sky-400 border border-zinc-700'
+                    : 'text-zinc-400 hover:text-zinc-200'
+                }`}
+              >
+                {cat}
+              </button>
             ))}
-          </select>
-
-          <select
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value as any)}
-            className="bg-zinc-900 border border-zinc-800 rounded-lg px-4 py-2 text-sm text-zinc-200 focus:outline-none focus:border-zinc-500"
-          >
-            <option value="proj_pts">Sort: Projected ROS PPG (High to Low)</option>
-            <option value="pts">Sort: Current PPG (High to Low)</option>
-            <option value="name">Sort: Player Name (A-Z)</option>
-          </select>
+          </div>
         </div>
 
         {/* Table */}
@@ -121,18 +163,35 @@ export default function HomePage() {
                 <th className="py-3 px-4">Player</th>
                 <th className="py-3 px-4">Team</th>
                 <th className="py-3 px-4 text-right">GP</th>
-                <th className="py-3 px-4 text-right">Current PPG</th>
-                <th className="py-3 px-4 text-right">Projected ROS PPG</th>
+                <th className="py-3 px-4 text-right">MPG</th>
+                <th className="py-3 px-4 text-right">Current {activeStat.toUpperCase()}</th>
+                <th className="py-3 px-4 text-right">Projected ROS {activeStat.toUpperCase()}</th>
                 <th className="py-3 px-4 text-right">Proj Delta</th>
-                <th className="py-3 px-4 text-right">REB</th>
-                <th className="py-3 px-4 text-right">AST</th>
+                <th className="py-3 px-4 text-right">Projected 82G Finish</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-800/60">
               {filteredPlayers.slice(0, 100).map((player) => {
-                const delta = (player.ros_forecast.proj_pts_avg - player.current.pts).toFixed(1);
+                const currentVal = player.current[activeStat];
+                const projVal =
+                  activeStat === 'pts'
+                    ? player.ros_forecast.proj_pts_avg
+                    : activeStat === 'reb'
+                    ? player.ros_forecast.proj_reb_avg
+                    : player.ros_forecast.proj_ast_avg;
+
+                const delta = (projVal - currentVal).toFixed(1);
                 const isPositive = Number(delta) > 0;
                 const isNeutral = Number(delta) === 0;
+
+                const finalSeasonEst =
+                  activeStat === 'pts'
+                    ? player.ros_forecast.end_season_pts_avg.toFixed(1)
+                    : (
+                        ((currentVal * player.current.gp) +
+                          projVal * player.ros_forecast.rem_games) /
+                        82
+                      ).toFixed(1);
 
                 return (
                   <tr key={player.id} className="hover:bg-zinc-800/40 transition-colors">
@@ -141,9 +200,8 @@ export default function HomePage() {
                         <img
                           src={`https://cdn.nba.com/headshots/nba/latest/260x190/${player.id}.png`}
                           alt={player.name}
-                          className="w-8 h-8 rounded-full object-cover bg-zinc-800"
+                          className="w-8 h-8 rounded-full object-cover bg-zinc-800 shrink-0"
                           onError={(e) => {
-                            // Fallback for rookies/two-ways with missing portraits
                             (e.target as HTMLElement).style.display = 'none';
                           }}
                         />
@@ -151,10 +209,11 @@ export default function HomePage() {
                       </div>
                     </td>
                     <td className="py-3 px-4 text-zinc-400 font-mono text-xs">{player.team}</td>
-                    <td className="py-3 px-4 text-right text-zinc-300">{player.current.gp}</td>
-                    <td className="py-3 px-4 text-right text-zinc-300">{player.current.pts.toFixed(1)}</td>
-                    <td className="py-3 px-4 text-right font-semibold text-sky-400">
-                      {player.ros_forecast.proj_pts_avg.toFixed(1)}
+                    <td className="py-3 px-4 text-right text-zinc-300 font-mono">{player.current.gp}</td>
+                    <td className="py-3 px-4 text-right text-zinc-400 font-mono">{player.current.min}</td>
+                    <td className="py-3 px-4 text-right text-zinc-300 font-mono">{currentVal.toFixed(1)}</td>
+                    <td className="py-3 px-4 text-right font-semibold text-sky-400 font-mono">
+                      {projVal.toFixed(1)}
                     </td>
                     <td
                       className={`py-3 px-4 text-right font-mono text-xs ${
@@ -167,8 +226,7 @@ export default function HomePage() {
                     >
                       {isPositive ? `+${delta}` : delta}
                     </td>
-                    <td className="py-3 px-4 text-right text-zinc-400">{player.current.reb.toFixed(1)}</td>
-                    <td className="py-3 px-4 text-right text-zinc-400">{player.current.ast.toFixed(1)}</td>
+                    <td className="py-3 px-4 text-right text-zinc-400 font-mono">{finalSeasonEst}</td>
                   </tr>
                 );
               })}
